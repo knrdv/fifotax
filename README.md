@@ -1,0 +1,2 @@
+# fifotax
+FIFO tax calculator
