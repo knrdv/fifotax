@@ -10,6 +10,7 @@ logger.setLevel(logging.DEBUG)
 
 def main():
 	transactions = Transactions("taxes.csv")
+	print(transactions)
 
 	state = {}
 	for tr in transactions:
@@ -24,13 +25,13 @@ def main():
 			state[tr.ticker]["buy_quantity"] += tr.quantity
 
 		elif tr.action == "SELL":
-			print("Got a SELL order:")
-			print(tr)
-			print(f"Total buy quantity: {state[tr.ticker]['buy_quantity']}")
+			logger.info("Got a SELL order:")
+			logger.info(tr)
+			logger.info(f"Total buy quantity: {state[tr.ticker]['buy_quantity']}")
 			while tr.quantity > 0:
-				print(f"{tr.ticker} quantity: {tr.quantity}")
+				logger.info(f"{tr.ticker} quantity: {tr.quantity}")
 				buy_trans = state[tr.ticker]["buyqueue"].pop()
-				print(f"Popped: {buy_trans}")
+				logger.info(f"Popped: {buy_trans}")
 
 				# buy_trans will get spent
 				if tr.quantity >= buy_trans.quantity:
@@ -44,8 +45,16 @@ def main():
 					state[tr.ticker]["buyqueue"].append(buy_trans)
 					tr.quantity -= tr.quantity
 
+	total_gains = 0.0
 	for key in state:
-		print(f"{key} gains: {state[key]['gains']}")
+		ticker_gains = state[key]['gains']
+		print(f"{key} gains: {ticker_gains}")
+		total_gains += ticker_gains
+
+	tax = total_gains * config.TAX
+	tax += tax * config.SURTAX
+
+	print(f"Total tax to pay: {tax}")
 
 
 if __name__ == "__main__":
