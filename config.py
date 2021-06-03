@@ -11,3 +11,7 @@ DATE_FORMAT = "%d.%m.%Y."
 # Tax information
 TAX = 0.1
 SURTAX = 0
+
+# HNB API
+HNB_API = "https://api.hnb.hr/tecajn/v2"
+HNB_DATE_FORMAT = "%Y-%m-%d"

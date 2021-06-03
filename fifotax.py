@@ -19,6 +19,7 @@ import collections
 import argparse
 from transaction import Transactions
 from datetime import datetime
+from hnbAPI import HnbAPI
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -27,7 +28,11 @@ def main(args):
 	transactions = Transactions(args.transactions_csv)
 	print(f"Transactions:\n{transactions}")
 
+	hnb = HnbAPI()
+
 	state = {}
+	gains_usd = "gains_usd"
+	gains_hrk = "gains_hrk"
 	for tr in transactions:
 
 		# If first time seeing the ticker, initialize its state
@@ -35,7 +40,8 @@ def main(args):
 			logger.info(f"Adding new ticker to state: {tr.ticker}")
 			state[tr.ticker] = {}
 			state[tr.ticker]["buyqueue"] = collections.deque()
-			state[tr.ticker]["gains"] = 0.0
+			state[tr.ticker][gains_usd] = 0.0
+			state[tr.ticker][gains_hrk] = 0.0
 			state[tr.ticker]["buy_quantity"] = 0.0
 
 		# Buy transaction
@@ -48,6 +54,10 @@ def main(args):
 			logger.info("Got a SELL order:")
 			logger.info(tr)
 			logger.info(f"Total buy quantity: {state[tr.ticker]['buy_quantity']}")
+
+			# Get currency middle exchange rate at sell date
+			middle_rate = hnb.getMiddleExchangeAtDate(tr.date, currency="USD")
+			logger.info(f"Middle rate at {tr.date} was {middle_rate}")
 
 			# Do while selling quantity is not depleted
 			while tr.quantity > 0:
@@ -66,30 +76,37 @@ def main(args):
 				# If buy_trans will get spent
 				if tr.quantity >= buy_trans.quantity:
 					if not passed_2y:
-						state[tr.ticker]["gains"] += (tr.price - buy_trans.price)*buy_trans.quantity
+						state[tr.ticker][gains_usd] += (tr.price - buy_trans.price)*buy_trans.quantity
+						state[tr.ticker][gains_hrk] += (tr.price - buy_trans.price)*buy_trans.quantity*middle_rate
+
 					tr.quantity = round(tr.quantity - buy_trans.quantity, 8)
 
 				# If buy transaction has greater quantity than the current selling,
 				# buy transaction will get put back in queue with reduced quantity
 				elif tr.quantity < buy_trans.quantity:
 					if not passed_2y:
-						state[tr.ticker]["gains"] += (tr.price - buy_trans.price)*tr.quantity
+						state[tr.ticker][gains_usd] += (tr.price - buy_trans.price)*tr.quantity
+						state[tr.ticker][gains_hrk] += (tr.price - buy_trans.price)*tr.quantity*middle_rate
 					buy_trans.quantity -= tr.quantity
 					state[tr.ticker]["buyqueue"].append(buy_trans)
 					tr.quantity -= tr.quantity
 
-	total_gains = 0.0
+	total_gains_usd = 0.0
+	total_gains_hrk = 0.0
 	for key in state:
-		ticker_gains = state[key]['gains']
-		print(f"{key} gains: {ticker_gains}")
-		total_gains += ticker_gains
-	if total_gains < 0:
-		logger.info(f"Operating at loss: {total_gains}, no taxes need to be paid")
-		total_gains = 0.0
-	tax = total_gains * config.TAX
+		ticker_gains_usd = state[key][gains_usd]
+		ticker_gains_hrk = state[key][gains_hrk]
+		print(f"{key} gains: {ticker_gains_usd} USD, {ticker_gains_hrk} HRK")
+		total_gains_usd += ticker_gains_usd
+		total_gains_hrk += ticker_gains_hrk
+	if total_gains_usd < 0:
+		logger.info(f"Operating at loss: {total_gains_usd}, no taxes need to be paid")
+		total_gains_usd = 0.0
+		total_gains_hrk = 0.0
+	tax = total_gains_hrk * config.TAX
 	tax += tax * config.SURTAX
 
-	print(f"Total tax to pay: {tax}")
+	print(f"Total tax to pay: {tax} HRK")
 
 if __name__ == "__main__":
 	logging.basicConfig(format=config.LOG_FORMAT, filename=config.LOG_FILE)
