@@ -8,6 +8,9 @@ LOG_FORMAT = "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
 CSV_FILE = "taxes.csv"
 DATE_FORMAT = "%d.%m.%Y."
 
+# Output trail
+OUT_FILE = "trail.txt"
+
 # Tax information
 TAX = 0.1
 SURTAX = 0

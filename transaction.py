@@ -89,15 +89,51 @@ class TransactionParser:
 			temp_transactions = []
 			for row in csvreader:
 				temp_transactions.append(row)
+
+			mappings = self.getMappings(temp_transactions[0])
 			temp_transactions = temp_transactions[1:]
 			transactions = []
 			for t in temp_transactions:
-				date = datetime.strptime(t[0], self.dateformat)
-				action = t[1]
-				ticker = t[2]
-				quantity = float(t[3])
-				price = float(t[4])
+				date = datetime.strptime(t[mappings["date"]], self.dateformat)
+				action = t[mappings["action"]]
+				ticker = t[mappings["ticker"]]
+				quantity = float(t[mappings["quantity"]])
+				price = float(t[mappings["price"]])
 				transaction = Transaction(date, action, ticker, quantity, price)
 				transactions.append(transaction)
 		logger.info("Transactions parsed successfully")
 		return transactions
+
+	def getMappings(self, columns : list) -> dict:
+		"""Find correct column mappings to relevant information from CSV file.
+		
+		Returns dictionary mappings of correct fields to csv column indices.
+		"""
+		mappings = {
+			"date"		: None,
+			"action" 	: None,
+			"ticker" 	: None,
+			"quantity"  : None,
+			"price" 	: None,
+		}
+		index = 0
+		for column in columns:
+			col = column.lower()
+			if col == "date":
+				mappings["date"] = index
+			elif col == "action":
+				mappings["action"] = index
+			elif col == "ticker":
+				mappings["ticker"] = index
+			elif col == "quantity":
+				mappings["quantity"] = index
+			elif col == "price":
+				mappings["price"] = index
+			else:
+				logger.info(f"Unsupported column {col}")
+			index += 1
+		for key in mappings.keys():
+			if mappings[key] == None:
+				logger.info("Found uninitialized mapping")
+				ValueError("Found uninitialized mapping")
+		return mappings
