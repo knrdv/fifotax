@@ -18,6 +18,7 @@ import logging
 import collections
 import argparse
 from transaction import Transactions
+from trailmaker import TrailMaker
 from datetime import datetime
 from hnbAPI import HnbAPI
 
@@ -28,7 +29,12 @@ def main(args):
 	transactions = Transactions(args.transactions_csv)
 	print(f"Transactions:\n{transactions}")
 
+	# Initialize Croatian National Bank API interface
 	hnb = HnbAPI()
+
+	# Initialize trail maker
+	tm = TrailMaker()
+	tm.writeFirst(transactions)
 
 	state = {}
 	gains_usd = "gains_usd"
@@ -55,6 +61,9 @@ def main(args):
 			logger.info(tr)
 			logger.info(f"Total buy quantity: {state[tr.ticker]['buy_quantity']}")
 
+			# Write buy trail
+			tm.writeSell(tr)
+
 			# Get currency middle exchange rate at sell date
 			middle_rate = hnb.getMiddleExchangeAtDate(tr.date, currency="USD")
 			logger.info(f"Middle rate at {tr.date} was {middle_rate}")
@@ -78,6 +87,7 @@ def main(args):
 					if not passed_2y:
 						state[tr.ticker][gains_usd] += (tr.price - buy_trans.price)*buy_trans.quantity
 						state[tr.ticker][gains_hrk] += (tr.price - buy_trans.price)*buy_trans.quantity*middle_rate
+						tm.writeCalculation(tr, buy_trans, middle_rate, state[tr.ticker][gains_hrk])
 
 					tr.quantity = round(tr.quantity - buy_trans.quantity, 8)
 
@@ -87,6 +97,7 @@ def main(args):
 					if not passed_2y:
 						state[tr.ticker][gains_usd] += (tr.price - buy_trans.price)*tr.quantity
 						state[tr.ticker][gains_hrk] += (tr.price - buy_trans.price)*tr.quantity*middle_rate
+						tm.writeCalculation(tr, buy_trans, middle_rate, state[tr.ticker][gains_hrk])
 					buy_trans.quantity -= tr.quantity
 					state[tr.ticker]["buyqueue"].append(buy_trans)
 					tr.quantity -= tr.quantity
@@ -105,6 +116,7 @@ def main(args):
 		total_gains_hrk = 0.0
 	tax = total_gains_hrk * config.TAX
 	tax += tax * config.SURTAX
+	tm.writeLast(state)
 
 	print(f"Total tax to pay: {tax} HRK")
 

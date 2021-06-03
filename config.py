@@ -9,7 +9,7 @@ CSV_FILE = "taxes.csv"
 DATE_FORMAT = "%d.%m.%Y."
 
 # Output trail
-OUT_FILE = "trail.txt"
+TRAIL_FILE = "trail.txt"
 
 # Tax information
 TAX = 0.1
