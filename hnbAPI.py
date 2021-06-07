@@ -1,4 +1,4 @@
-"""This clas implements Croatian National Bank API interface."""
+"""This module implements Croatian National Bank API interface class."""
 import logging
 import config
 import requests
@@ -9,6 +9,12 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 class HnbAPI:
+	"""HnbAPI implements functionality for issuing requests to HNB API.
+	
+	Attributes:
+		endpoint: HNB endpoint as found on the HNB official site
+		dateformat: date format used for parsing HNB response dates
+	"""
 
 	def __init__(self):
 		self.endpoint = config.HNB_API
@@ -37,6 +43,7 @@ class HnbAPI:
 			raise ValueError("Wrong currency")
 
 	def getMiddleExchangeAtDate(self, date, currency="USD") -> float:
+		"""Returns the middle exchange rate for currency to HRK at specified date."""
 		hnb_date = date.strftime(config.HNB_DATE_FORMAT)
 		query = f"{self.endpoint}?valuta={currency}&datum-primjene={hnb_date}"
 		response = requests.get(query)
