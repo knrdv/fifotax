@@ -33,7 +33,7 @@ def main(args):
 	hnb = HnbAPI()
 
 	# Initialize trail maker
-	tm = TrailMaker()
+	tm = TrailMaker() if not args.output else TrailMaker(args.output)
 	tm.writeFirst(transactions)
 
 	state = {}
