@@ -16,9 +16,14 @@ class TrailMaker:
 			f.write("-----------------\n")
 			f.write(str(transactions) + "\n\n")
 
-	def writeSell(self, sell_order):
+	def writeSell(self, sell_order, exchange_rate):
 		with open(self.trail_file, "a") as f:
-			line = f"Processing {sell_order}\n"
+			line = f"Processing {sell_order}\nExchange rate is {exchange_rate}\n"
+			f.write(line)
+
+	def writeTaxExemption(self, stx, btx):
+		with open(self.trail_file, "a") as f:
+			line = f"    Difference between the sell order date {stx.date} and buy order date {btx.date} is greater than 2 years, no tax is paid. This order is discarded.\n"
 			f.write(line)
 
 	def writeCalculation(self, t1, t2, rate, gains):
@@ -28,11 +33,13 @@ class TrailMaker:
 		if t1.quantity >= t2.quantity:
 			result = (t1.price - t2.price) * t2.quantity
 			line4 = f"    GAIN(USD):{t2.quantity} * {t1.price} - {t2.quantity} * {t2.price} = {result} USD\n"
+			result = result*rate
+			line5 = f"    GAIN(HRK):({t2.quantity} * {t1.price} - {t2.quantity} * {t2.price}) * {rate} = {result} HRK\n"
 		elif t1.quantity < t2.quantity:
 			result = (t1.price - t2.price) * t1.quantity
 			line4 = f"    GAIN(USD):{t1.quantity} * {t1.price} - {t1.quantity} * {t2.price} = {result} USD\n"
-		result = result*rate
-		line5 = f"    GAIN(HRK):({t1.quantity} * {t1.price} - {t2.quantity} * {t2.price}) * {rate} = {result} HRK\n"
+			result = result*rate
+			line5 = f"    GAIN(HRK):({t1.quantity} * {t1.price} - {t1.quantity} * {t2.price}) * {rate} = {result} HRK\n"
 		line6 = f"    TOTAL GAINS: {gains}"
 		with open(self.trail_file, "a") as f:
 			line = line1 + line2 + line3 + line4 + line5 + line6 + "\n\n"

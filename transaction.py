@@ -94,9 +94,13 @@ class TransactionParser:
 			temp_transactions = temp_transactions[1:]
 			transactions = []
 			for t in temp_transactions:
+				print(f"current tx: {t}")
 				date = datetime.strptime(t[mappings["date"]], self.dateformat)
-				action = t[mappings["action"]]
-				ticker = t[mappings["ticker"]]
+				action = t[mappings["action"]].lower()
+				if action != "sell" and action != "buy":
+					logger.info(f"Skipping transaction {t}")
+					continue
+				ticker = t[mappings["ticker"]].lower()
 				quantity = float(t[mappings["quantity"]])
 				price = float(t[mappings["price"]])
 				transaction = Transaction(date, action, ticker, quantity, price)
@@ -119,21 +123,27 @@ class TransactionParser:
 		index = 0
 		for column in columns:
 			col = column.lower()
+			logger.info(f"Current column in parser:{col}")
 			if col == "date":
 				mappings["date"] = index
-			elif col == "action":
+				logger.info(f"DATE detected at column {index}")
+			elif col == "action" or col == "type":
 				mappings["action"] = index
+				logger.info(f"ACTION detected at column {index}")
 			elif col == "ticker":
 				mappings["ticker"] = index
+				logger.info(f"TICKER detected at column {index}")
 			elif col == "quantity":
 				mappings["quantity"] = index
-			elif col == "price":
+				logger.info(f"QUANTITY detected at column {index}")
+			elif col == "price" or col == "price per share":
 				mappings["price"] = index
+				logger.info(f"PRICE detected at column {index}")
 			else:
 				logger.info(f"Unsupported column {col}")
 			index += 1
 		for key in mappings.keys():
 			if mappings[key] == None:
-				logger.info("Found uninitialized mapping")
-				ValueError("Found uninitialized mapping")
+				logger.error("Found uninitialized mapping")
+				raise ValueError(f"Found uninitialized mapping for {key}")
 		return mappings

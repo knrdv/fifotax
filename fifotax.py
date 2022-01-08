@@ -36,6 +36,11 @@ def main(args):
 	tm = TrailMaker() if not args.output else TrailMaker(args.output)
 	tm.writeFirst(transactions)
 
+	"""Ticker state consists of:
+		- buy fifo queue
+		- total gains for ticker in USD
+		- total gains for ticker in HRK
+	"""
 	state = {}
 	gains_usd = "gains_usd"
 	gains_hrk = "gains_hrk"
@@ -48,25 +53,28 @@ def main(args):
 			state[tr.ticker]["buyqueue"] = collections.deque()
 			state[tr.ticker][gains_usd] = 0.0
 			state[tr.ticker][gains_hrk] = 0.0
-			state[tr.ticker]["buy_quantity"] = 0.0
+			state[tr.ticker]["quantity"] = 0.0
 
 		# Buy transaction
 		if tr.action.lower() == "buy":
 			state[tr.ticker]["buyqueue"].appendleft(tr)
-			state[tr.ticker]["buy_quantity"] += tr.quantity
+			state[tr.ticker]["quantity"] += tr.quantity
 
 		# Sell transaction
 		elif tr.action.lower() == "sell":
 			logger.info("Got a SELL order:")
 			logger.info(tr)
-			logger.info(f"Total buy quantity: {state[tr.ticker]['buy_quantity']}")
 
-			# Write buy trail
-			tm.writeSell(tr)
+			if round(tr.quantity,8) > round(state[tr.ticker]["quantity"],8):
+				raise ValueError(f"Want to sell more ({tr.quantity}) than in posession ({state[tr.ticker]['quantity']})")
+			state[tr.ticker]["quantity"] -= tr.quantity
 
 			# Get currency middle exchange rate at sell date
 			middle_rate = hnb.getMiddleExchangeAtDate(tr.date, currency="USD")
 			logger.info(f"Middle rate at {tr.date} was {middle_rate}")
+
+			# Write sell trail
+			tm.writeSell(tr, middle_rate)
 
 			# Do while selling quantity is not depleted
 			while tr.quantity > 0:
@@ -74,21 +82,21 @@ def main(args):
 				buy_trans = state[tr.ticker]["buyqueue"].pop()
 				logger.info(f"Popped: {buy_trans}")
 
-				# If buy transaction is older than 2y, no tax is paid
+				# If buy tx is older than 2y, no tax is paid
 				passed_2y = False
 				time_delta = abs(tr.date - buy_trans.date)
 				logger.info(f"Time delta: {time_delta.days}")
 				if time_delta.days >= 365 * 2:
 					logger.info(f"Time delta is {time_delta} and greater than 2 years, no taxes are paid on it")
+					tm.writeTaxExemption(tr, buy_trans)
 					passed_2y = True
 
 				# If buy_trans will get spent
 				if tr.quantity >= buy_trans.quantity:
-					if not passed_2y:
+					if not passed_2y and tr.date.year == config.TAX_YEAR:
 						state[tr.ticker][gains_usd] += (tr.price - buy_trans.price)*buy_trans.quantity
 						state[tr.ticker][gains_hrk] += (tr.price - buy_trans.price)*buy_trans.quantity*middle_rate
 						tm.writeCalculation(tr, buy_trans, middle_rate, state[tr.ticker][gains_hrk])
-
 					tr.quantity = round(tr.quantity - buy_trans.quantity, 8)
 
 				# If buy transaction has greater quantity than the current selling,
